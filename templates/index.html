@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Webhook Logs</title>
+</head>
+<body>
+  <h2>GitHub Activity</h2>
+  <div id="logs">Loading...</div>
+
+  <script>
+    function formatDate(iso) {
+      const date = new Date(iso);
+      const day = date.getUTCDate();
+      const suffix = (d => (d > 3 && d < 21) || d % 10 > 3 ? 'th' : ['st', 'nd', 'rd'][d % 10 - 1])(day);
+      const month = date.toLocaleString('en-US', { month: 'long', timeZone: 'UTC' });
+      const year = date.getUTCFullYear();
+      const time = date.toLocaleString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+        timeZone: 'UTC'
+      });
+      return `${day}${suffix} ${month} ${year} - ${time} UTC`;
+    }
+
+    function render(events) {
+      const logs = document.getElementById("logs");
+      logs.innerHTML = events.map(e => {
+        const time = formatDate(e.timestamp);
+        let msg = "";
+
+        if (e.action === "PUSH") msg = `"${e.author}" pushed to "${e.to_branch}" on ${time}`;
+        if (e.action === "PULL_REQUEST") msg = `"${e.author}" submitted a pull request from "${e.from_branch}" to "${e.to_branch}" on ${time}`;
+        if (e.action === "MERGE") msg = `"${e.author}" merged branch "${e.from_branch}" to "${e.to_branch}" on ${time}`;
+
+        return `<div class="entry ${e.action.toLowerCase()}"><b>${msg}</b></div>`;
+      }).join("");
+    }
+
+    async function fetchEvents() {
+      try {
+        const res = await fetch("/webhook/events");
+        const data = await res.json();
+        render(data);
+      } catch {
+        document.getElementById("logs").innerText = "Failed to load events.";
+      }
+    }
+
+    fetchEvents();
+    setInterval(fetchEvents, 15000);
+  </script>
+</body>
+</html>
